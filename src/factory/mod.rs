@@ -1,6 +1,7 @@
 use crate::game::*;
 use crate::behaviour::*;
-use crate::{ Storage, Context, DR_SHOT, DR_CARRIER, DR_BOMBER, DR_CHUTE, DR_BOMB };
+use crate::collider::*;
+use crate::{ Context, DR_SHOT, DR_CARRIER, DR_BOMBER, DR_CHUTE, DR_BOMB };
 
 #[derive(Copy, Clone)]
 pub struct GmoFactory {
@@ -18,6 +19,9 @@ impl GmoFactory {
 				}
 			),
 			data: gmo_data,
+			collide_mask: CollideMask {
+				src: CollideGroup::SHOT, dst: CollideGroup::AERIAL
+			},
 			bhv: &BehaviourMove {},
 			bhvd_index: ctx.storage.pantry_bhvd_move.alloc(bhv_data)
 		}
@@ -34,6 +38,9 @@ impl GmoFactory {
 				}
 			),
 			data: gmo_data,
+			collide_mask: CollideMask {
+				src: CollideGroup::AERIAL, dst: CollideGroup::NONE
+			},
 			bhv: &BehaviourCarrier {},
 			bhvd_index: ctx.storage.pantry_bhvd_carrier.alloc(bhv_data)
 		}
@@ -50,6 +57,9 @@ impl GmoFactory {
 				}
 			),
 			data: gmo_data,
+			collide_mask: CollideMask {
+				src: CollideGroup::AERIAL, dst: CollideGroup::NONE
+			},
 			bhv: &BehaviourMove {},
 			bhvd_index: ctx.storage.pantry_bhvd_move.alloc(bhv_data)
 		}

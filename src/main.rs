@@ -8,6 +8,7 @@ pub mod factory;
 pub mod pantry;
 pub mod behaviour;
 pub mod game;
+pub mod collider;
 
 use sdl2::event::Event;
 use sdl2::pixels::Color;
@@ -18,7 +19,7 @@ use crate::factory::*;
 use crate::pantry::*;
 use crate::behaviour::*;
 use crate::game::*;
-
+use crate::collider::*;
 
 const FPS_DELAY: i32 = 33;
 const WINDOW_WIDTH: u32 = 800;
@@ -54,50 +55,41 @@ impl Storage {
 	}
 }
 
-pub struct Shot {}
-impl Shot {
-	pub fn new(ctx: &mut Context, gmo_data:GmoData, bhv_data: BhvDataMove) -> GameObject {
-		GameObject {
-			sto_index: ctx.stage.add_child(
-				StageObject {
-					x: gmo_data.x, y: gmo_data.y,
-					drawable: &DR_SHOT
-				}
-			),
-			data: gmo_data,
-			bhv: &BehaviourMove {},
-			bhvd_index: ctx.storage.pantry_bhvd_move.alloc(bhv_data)
-		}
-	}
-}
-
 pub struct Context<'a> {
 	pub stage: Stage<'a>,
 	pub storage: Storage,
 	pub factory: GmoFactory,
-	pub gmo_new_vec: Vec<GameObject>
+	pub vec_gmo_new: Vec<GameObject>
 }
 
 fn process_game_objects(
-    gmo_vec: &mut Vec<GameObject>, ctx: &mut Context
+	pantry_gmo: &mut Pantry<GameObject>, ctx: &mut Context
 ) {
-    let mut i = 0;
-    while i < gmo_vec.len() {
-		let gmo = &mut gmo_vec[i];
-    	gmo.bhv.update(&mut gmo.data, ctx, gmo.bhvd_index);
-        let x = gmo.data.x;
-        let y = gmo.data.y;
-        if x < 0 || y < 0 || x as u32 >= ctx.stage.w || y as u32 >= ctx.stage.h {
+	if pantry_gmo.used_cnt == 0 {
+		return;
+	}
+
+	let mut index = pantry_gmo.first_index();
+	let last_index = pantry_gmo.last_index();
+	loop {
+		let gmo = pantry_gmo.get(index);
+		gmo.bhv.update(&mut gmo.data, ctx, gmo.bhvd_index);
+		let x = gmo.data.x;
+		let y = gmo.data.y;
+		if x < 0 || y < 0 || x as u32 >= ctx.stage.w || y as u32 >= ctx.stage.h {
 			gmo.free(ctx);
-            gmo_vec.swap_remove(i);
-        } else {
-			let sto = ctx.stage.get(gmo_vec[i].sto_index);
+			pantry_gmo.free(index);
+		} else {
+			let sto = ctx.stage.get(gmo.sto_index);
 			sto.x = x;
 			sto.y = y;
-            i += 1;
-        }
-    }
-    gmo_vec.append(&mut ctx.gmo_new_vec);
+		}
+		if index == last_index {
+			break;
+		}
+		index = pantry_gmo.next_index(index);
+
+	}
 }
 
 pub fn main()
@@ -114,9 +106,9 @@ pub fn main()
 	let window: sdl2::video::Window = wb.build().unwrap();
 	let cb = sdl2::render::CanvasBuilder::new(window);
 	let mut canvas = cb.build().unwrap();
-    let mut renderer = Renderer { canvas: &mut canvas };
+	let mut renderer = Renderer { canvas: &mut canvas };
 
-    let mut ctx = Context {
+	let mut ctx = Context {
 		stage: Stage {
 			w: WINDOW_WIDTH,
 			h: WINDOW_HEIGHT,
@@ -124,22 +116,24 @@ pub fn main()
 		},
 		factory: GmoFactory {},
 		storage: Storage::create(128),
-		gmo_new_vec: Vec::with_capacity(128)
+		vec_gmo_new: Vec::with_capacity(128)
 	};
 
-    let mut gmo_vec: Vec<GameObject> = Vec::new();
+	let mut pantry_gmo: Pantry<GameObject> = Pantry::create(128);
+	let mut vec_collide: Vec<CollidePair> = Vec::with_capacity(128);
 
-    let factory = ctx.factory;
-	gmo_vec.push(
+	let factory = ctx.factory;
+
+	pantry_gmo.alloc(
 		factory.spawn_carrier(&mut ctx,
-			GmoData { x: 700, y: 20 },
-			BhvDataCarrier { dx: -3, interval: 30, cnt: 0 }
+			GmoData { x: 700, y: 20, w:40, h:20 },
+			BhvDataCarrier { dx: -1, interval: 30, cnt: 0 }
 		)
 	);
-	gmo_vec.push(
+	pantry_gmo.alloc(
 		factory.spawn_carrier(&mut ctx,
-			GmoData { x: 0, y: 40 },
-			BhvDataCarrier { dx: 3, interval: 30, cnt: 0 }
+			GmoData { x: 0, y: 40, w:40, h:20 },
+			BhvDataCarrier { dx: 1, interval: 30, cnt: 0 }
 		)
 	);
 
@@ -148,8 +142,11 @@ pub fn main()
 	let mut running = true;
 	let mut next_tick: i32 = timer.ticks() as i32 + FPS_DELAY;
 
+	let collider = Collider {};
+	let solver = Solver {};
+
 	while running {
-    	ctx.stage.draw(&mut renderer);
+		ctx.stage.draw(&mut renderer);
 		for evt in evt_pump.poll_iter() {
 			match evt {
 				Event::Quit { .. } => {
@@ -157,11 +154,11 @@ pub fn main()
 				},
 				Event::KeyDown { keycode: Some(k), .. } => {
 					let factory = ctx.factory;
-					gmo_vec.push(
+					pantry_gmo.alloc(
 						factory.spawn_shot(
 							&mut ctx,
-							GmoData { x: 400, y: 599 },
-							BhvDataMove { dx: 0, dy: -3 }
+							GmoData { x: 400, y: 599, w:3, h:3 },
+							BhvDataMove { dx: 0, dy: -5 }
 						)
 					);
 				},
@@ -175,7 +172,15 @@ pub fn main()
 			diff = next_tick - timer.ticks() as i32;
 		}
 
-    	process_game_objects(&mut gmo_vec, &mut ctx);
+		process_game_objects(&mut pantry_gmo, &mut ctx);
+		collider.check(&mut pantry_gmo, &mut vec_collide);
+		if vec_collide.len() > 0 {
+			solver.solve(&mut pantry_gmo, &mut vec_collide, &mut ctx);
+			vec_collide.clear();
+		}
+		for i in 0..ctx.vec_gmo_new.len() {
+			pantry_gmo.alloc(ctx.vec_gmo_new.pop().unwrap());
+		}
 
 		next_tick += FPS_DELAY;
 	}
