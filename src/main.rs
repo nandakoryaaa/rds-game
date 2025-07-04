@@ -185,12 +185,6 @@ pub fn main()
 			}
 		}
 
-		let mut diff: i32 = next_tick - timer.ticks() as i32;
-		while diff > 0 {
-			thread::sleep(time::Duration::from_millis(diff as u64));
-			diff = next_tick - timer.ticks() as i32;
-		}
-
 		process_game_objects(&mut pantry_gmo, &mut ctx);
 		collider.check(
 			Rect { x: 0, y: 0, w: ctx.stage.w, h: ctx.stage.h },
@@ -208,6 +202,12 @@ pub fn main()
 		}
 		for i in 0..ctx.vec_gmo_new.len() {
 			pantry_gmo.alloc(ctx.vec_gmo_new.pop().unwrap());
+		}
+
+		let mut diff: i32 = next_tick - timer.ticks() as i32;
+		while diff > 0 {
+			thread::sleep(time::Duration::from_millis(diff as u64));
+			diff = next_tick - timer.ticks() as i32;
 		}
 
 		next_tick += FPS_DELAY;
