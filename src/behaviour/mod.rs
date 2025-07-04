@@ -34,7 +34,7 @@ impl Behaviour for BehaviourCarrier {
 			let factory = ctx.factory;
 			let gmo = factory.spawn_chute(
 				ctx,
-				GmoData { x: gmo_data.x, y: gmo_data.y, w:10, h:10 },
+				GmoData { x: gmo_data.x, y: gmo_data.y, w: 15, h: 20 },
 				BhvDataMove { dx: 0, dy: 2 }
 			);
 

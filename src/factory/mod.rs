@@ -12,6 +12,7 @@ impl GmoFactory {
 		&self, ctx: &mut Context, gmo_data: GmoData, bhv_data: BhvDataMove
 	) -> GameObject {
 		GameObject {
+			gmo_type: GmoType::SHOT,
 			sto_index: ctx.stage.add_child(
 				StageObject {
 					x: gmo_data.x, y: gmo_data.y, 
@@ -31,6 +32,7 @@ impl GmoFactory {
 		&self, ctx: &mut Context, gmo_data: GmoData, bhv_data: BhvDataCarrier
 	) -> GameObject {
 		GameObject {
+			gmo_type: GmoType::CARRIER,
 			sto_index: ctx.stage.add_child(
 				StageObject {
 					x: gmo_data.x, y: gmo_data.y,
@@ -50,6 +52,7 @@ impl GmoFactory {
 		&self, ctx: &mut Context, gmo_data: GmoData, bhv_data: BhvDataMove
 	) -> GameObject {
 		GameObject {
+			gmo_type: GmoType::CHUTE,
 			sto_index: ctx.stage.add_child(
 				StageObject {
 					x: gmo_data.x, y: gmo_data.y,
@@ -65,4 +68,3 @@ impl GmoFactory {
 		}
 	}
 }
-

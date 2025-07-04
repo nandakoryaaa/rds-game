@@ -5,6 +5,7 @@ use crate::pantry::*;
 use crate::renderer::*;
 use crate::collider::*;
 
+
 pub struct StageObject<'a> {
 	pub x: i32,
 	pub y: i32,
@@ -19,7 +20,14 @@ pub struct GmoData {
 	pub h: i32
 }
 
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub enum GmoType {
+	NONE, GUN, SHOT, CARRIER, BOMBER, CHUTE,
+	FALLING, STANDING, BOMB, EXPLOSION
+}
+
 pub struct GameObject {
+	pub gmo_type: GmoType,
 	pub data: GmoData,
 	pub collide_mask: CollideMask, 
 	pub sto_index: usize,

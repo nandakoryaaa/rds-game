@@ -13,6 +13,7 @@ pub mod collider;
 use sdl2::event::Event;
 use sdl2::pixels::Color;
 use std::{thread, time};
+use sdl2::keyboard::Keycode;
 
 use crate::renderer::*;
 use crate::factory::*;
@@ -74,16 +75,9 @@ fn process_game_objects(
 	loop {
 		let gmo = pantry_gmo.get(index);
 		gmo.bhv.update(&mut gmo.data, ctx, gmo.bhvd_index);
-		let x = gmo.data.x;
-		let y = gmo.data.y;
-		if x < 0 || y < 0 || x as u32 >= ctx.stage.w || y as u32 >= ctx.stage.h {
-			gmo.free(ctx);
-			pantry_gmo.free(index);
-		} else {
-			let sto = ctx.stage.get(gmo.sto_index);
-			sto.x = x;
-			sto.y = y;
-		}
+		let sto = ctx.stage.get(gmo.sto_index);
+		sto.x = gmo.data.x;
+		sto.y = gmo.data.y;
 		if index == last_index {
 			break;
 		}
@@ -91,6 +85,27 @@ fn process_game_objects(
 
 	}
 }
+
+fn print_game_objects(pantry_gmo: &Pantry<GameObject>)
+{
+	println!("gmo list:");
+	if pantry_gmo.used_cnt == 0 {
+		return;
+	}
+
+	let mut index = pantry_gmo.first_index();
+	let last_index = pantry_gmo.last_index();
+	loop {
+		let gmo = pantry_gmo.get_immutable(index);
+		println!("{} type: {} x: {} y: {} w: {} h: {}", index, gmo.gmo_type as u8, gmo.data.x, gmo.data.y, gmo.data.w, gmo.data.h);
+		if index == last_index {
+			break;
+		}
+		index = pantry_gmo.next_index(index);
+
+	}
+}
+
 
 pub fn main()
 {
@@ -153,14 +168,18 @@ pub fn main()
 					running = false;
 				},
 				Event::KeyDown { keycode: Some(k), .. } => {
-					let factory = ctx.factory;
-					pantry_gmo.alloc(
-						factory.spawn_shot(
-							&mut ctx,
-							GmoData { x: 400, y: 599, w:3, h:3 },
-							BhvDataMove { dx: 0, dy: -5 }
-						)
-					);
+					if k == Keycode::I {
+						print_game_objects(&pantry_gmo);
+					} else {
+						let factory = ctx.factory;
+						pantry_gmo.alloc(
+							factory.spawn_shot(
+								&mut ctx,
+								GmoData { x: 400, y: 599, w:3, h:3 },
+								BhvDataMove { dx: 0, dy: -5 }
+							)
+						);
+					}
 				},
 				_ => ()
 			}
@@ -173,9 +192,18 @@ pub fn main()
 		}
 
 		process_game_objects(&mut pantry_gmo, &mut ctx);
-		collider.check(&mut pantry_gmo, &mut vec_collide);
+		collider.check(
+			Rect { x: 0, y: 0, w: ctx.stage.w, h: ctx.stage.h },
+			&mut pantry_gmo,
+			&mut vec_collide
+		);
+
 		if vec_collide.len() > 0 {
-			solver.solve(&mut pantry_gmo, &mut vec_collide, &mut ctx);
+			let sevt = solver.solve(&mut pantry_gmo, &mut vec_collide, &mut ctx);
+			let score = 10 * sevt.shot_carriers + 5 * sevt.shot_chutes;
+			if score > 0 {
+				println!("score: {}", score);
+			}
 			vec_collide.clear();
 		}
 		for i in 0..ctx.vec_gmo_new.len() {

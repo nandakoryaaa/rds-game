@@ -83,6 +83,11 @@ impl<T> Pantry<T> {
 	pub fn get(&mut self, index: usize) -> &mut T {
 		&mut self.entries[index].payload
 	}
+
+	pub fn get_immutable(&self, index: usize) -> &T {
+		&self.entries[index].payload
+	}
+
 		
 	pub fn free(&mut self, index: usize) {
 		if index >= self.entries.len() || self.used_cnt == 0 {
