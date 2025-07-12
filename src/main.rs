@@ -3,86 +3,84 @@
 
 extern crate sdl2;
 
+pub mod static_drawable;
 pub mod renderer;
 pub mod factory;
 pub mod pantry;
 pub mod behaviour;
 pub mod game;
 pub mod collider;
+pub mod xrand;
 
 use sdl2::event::Event;
-use sdl2::pixels::Color;
 use std::{thread, time};
 use sdl2::keyboard::Keycode;
 
+use crate::static_drawable::*;
 use crate::renderer::*;
 use crate::factory::*;
 use crate::pantry::*;
 use crate::behaviour::*;
 use crate::game::*;
 use crate::collider::*;
+use crate::xrand::XRand;
 
 const FPS_DELAY: i32 = 33;
 const WINDOW_WIDTH: u32 = 800;
 const WINDOW_HEIGHT: u32 = 600;
 
-pub static DR_SHOT: DrawableRect = DrawableRect {
-	w: 3, h: 3, color: Color::RGB(255, 255, 255)
-};
-pub static DR_CARRIER: DrawableRect = DrawableRect {
-	w: 40, h: 20, color: Color::RGB(255, 255, 0)
-};
-pub static DR_BOMBER: DrawableRect = DrawableRect {
-	w: 30, h: 20, color: Color::RGB(0, 0, 255)
-};
-pub static DR_CHUTE: DrawableRect = DrawableRect {
-	w: 15, h: 20, color: Color::RGB(0, 255, 0)
-};
-pub static DR_BOMB: DrawableRect = DrawableRect {
-	w: 10, h: 10, color: Color::RGB(255, 0, 0)
-};
-
 pub struct Storage {
 	pub pantry_bhvd_move: Pantry<BhvDataMove>,
-	pub pantry_bhvd_carrier: Pantry<BhvDataCarrier>,
+	pub pantry_bhvd_tm: Pantry<BhvDataTimedMotion>,
+	pub pantry_bhvd_gun: Pantry<BhvDataGun>
 }
 
 impl Storage {
 	pub fn create(capacity: usize) -> Self {
 		Storage {
 			pantry_bhvd_move: Pantry::create(capacity),
-			pantry_bhvd_carrier: Pantry::create(capacity),
+			pantry_bhvd_tm: Pantry::create(capacity),
+			pantry_bhvd_gun: Pantry::create(1)
 		}
 	}
 }
 
-pub struct Context<'a> {
-	pub stage: Stage<'a>,
+pub struct Context {
+	pub stage: Stage,
 	pub storage: Storage,
-	pub factory: GmoFactory,
-	pub vec_gmo_new: Vec<GameObject>
+	pub gmo_factory: GmoFactory,
+	pub sto_factory: StoFactory,
+	pub vec_gmo_new: Vec<GmoNew>,
+	pub rand: XRand
 }
 
 fn process_game_objects(
 	pantry_gmo: &mut Pantry<GameObject>, ctx: &mut Context
 ) {
-	if pantry_gmo.used_cnt == 0 {
+	if pantry_gmo.len() == 0 {
 		return;
 	}
 
 	let mut index = pantry_gmo.first_index();
-	let last_index = pantry_gmo.last_index();
 	loop {
-		let gmo = pantry_gmo.get(index);
-		gmo.bhv.update(&mut gmo.data, ctx, gmo.bhvd_index);
-		let sto = ctx.stage.get(gmo.sto_index);
-		sto.x = gmo.data.x;
-		sto.y = gmo.data.y;
-		if index == last_index {
+		// запомнить состояние последнего индекса,
+		// т.к. после pantry_gmo.free() он может измениться
+		let is_last = pantry_gmo.is_last_index(index);
+		let bhv = pantry_gmo.get(index).bhv;
+		let status = bhv.update(ctx, pantry_gmo.get_mut(index), index);
+		let gmo = pantry_gmo.get_mut(index);
+		if status == BhvStatus::END {
+			gmo.free(ctx);
+			pantry_gmo.free(index);
+		} else {
+			let sto = ctx.stage.get_mut(gmo.sto_index);
+			sto.x = gmo.data.x;
+			sto.y = gmo.data.y;
+		}
+		if is_last {
 			break;
 		}
 		index = pantry_gmo.next_index(index);
-
 	}
 }
 
@@ -96,16 +94,14 @@ fn print_game_objects(pantry_gmo: &Pantry<GameObject>)
 	let mut index = pantry_gmo.first_index();
 	let last_index = pantry_gmo.last_index();
 	loop {
-		let gmo = pantry_gmo.get_immutable(index);
+		let gmo = pantry_gmo.get(index);
 		println!("{} type: {} x: {} y: {} w: {} h: {}", index, gmo.gmo_type as u8, gmo.data.x, gmo.data.y, gmo.data.w, gmo.data.h);
 		if index == last_index {
 			break;
 		}
 		index = pantry_gmo.next_index(index);
-
 	}
 }
-
 
 pub fn main()
 {
@@ -129,28 +125,30 @@ pub fn main()
 			h: WINDOW_HEIGHT,
 			pantry_sto: Pantry::create(128),
 		},
-		factory: GmoFactory {},
+		gmo_factory: GmoFactory {},
+		sto_factory: StoFactory {},
 		storage: Storage::create(128),
-		vec_gmo_new: Vec::with_capacity(128)
+		vec_gmo_new: Vec::with_capacity(128),
+		rand: XRand::new()
 	};
 
 	let mut pantry_gmo: Pantry<GameObject> = Pantry::create(128);
 	let mut vec_collide: Vec<CollidePair> = Vec::with_capacity(128);
 
-	let factory = ctx.factory;
+	let gmo_factory = ctx.gmo_factory;
 
-	pantry_gmo.alloc(
-		factory.spawn_carrier(&mut ctx,
-			GmoData { x: 700, y: 20, w:40, h:20 },
-			BhvDataCarrier { dx: -1, interval: 30, cnt: 0 }
-		)
-	);
-	pantry_gmo.alloc(
-		factory.spawn_carrier(&mut ctx,
-			GmoData { x: 0, y: 40, w:40, h:20 },
-			BhvDataCarrier { dx: 1, interval: 30, cnt: 0 }
-		)
-	);
+	{
+		let mut gmo_gun = gmo_factory.spawn_gun(
+			&mut ctx, 400-16, 600-37,
+			BhvDataGun { wave_type: GmoType::CARRIER, cnt:10, delay: 30 }
+		);
+		gmo_gun.sto_index = ctx.stage.add_child(
+			ctx.sto_factory.spawn_gun(gmo_gun.data.x, gmo_gun.data.y)
+		);
+		pantry_gmo.alloc(gmo_gun);
+	}
+
+	let shaft_index = ctx.stage.add_child(StageObject { x: 400, y: 600-32, angle: 90, drawable: &DR_SHAFT });
 
 	let mut evt_pump = sdl.event_pump().unwrap();
 	let timer = sdl.timer().unwrap();
@@ -170,22 +168,78 @@ pub fn main()
 				Event::KeyDown { keycode: Some(k), .. } => {
 					if k == Keycode::I {
 						print_game_objects(&pantry_gmo);
+					} else if k == Keycode::Left {
+						let sto = ctx.stage.get_mut(shaft_index);
+						sto.angle += 3;
+						if sto.angle > 180 {
+							sto.angle = 180;
+						}
+					} else if k == Keycode::Right {
+						let sto = ctx.stage.get_mut(shaft_index);
+						sto.angle -= 3;
+						if sto.angle < 0 {
+							sto.angle = 0;
+						}
 					} else {
-						let factory = ctx.factory;
-						pantry_gmo.alloc(
-							factory.spawn_shot(
-								&mut ctx,
-								GmoData { x: 400, y: 599, w:3, h:3 },
-								BhvDataMove { dx: 0, dy: -5 }
-							)
+						let sto = ctx.stage.get(shaft_index);
+						let theta: f32 = (sto.angle as f32) * 3.1415926 / 180.0;
+						let cos = theta.cos();
+						let sin = theta.sin();
+						let x = sto.x + (20.0 * cos).round() as i32;
+						let y = sto.y - (20.0 * sin).round() as i32;
+						let gmo_factory = ctx.gmo_factory;
+						let mut gmo_shot = gmo_factory.spawn_shot(
+							&mut ctx, x, y,
+							BhvDataMove {
+								dx: (5.0 * cos).round() as i32,
+								dy: -(5.0 * sin).round() as i32
+							}
 						);
+						let sto_shot = ctx.sto_factory.spawn_shot(gmo_shot.data.x, gmo_shot.data.y);
+						gmo_shot.sto_index = ctx.stage.add_child(sto_shot);
+						pantry_gmo.alloc(gmo_shot);
 					}
 				},
 				_ => ()
 			}
 		}
-
+// uncomment for autoplay
+/*
+					let r = ctx.rand.randint(0, 1000);
+					if r < 450 {
+						let sto = ctx.stage.get_mut(shaft_index);
+						sto.angle += 3;
+						if sto.angle > 180 {
+							sto.angle = 180;
+						}
+					} else if r > 550 {
+						let sto = ctx.stage.get_mut(shaft_index);
+						sto.angle -= 3;
+						if sto.angle < 0 {
+							sto.angle = 0;
+						}
+					} else if ctx.rand.randint(0, 1000) > 750 {
+						let sto = ctx.stage.get(shaft_index);
+						let theta: f32 = (sto.angle as f32) * 3.1415926 / 180.0;
+						let cos = theta.cos();
+						let sin = theta.sin();
+						let x = sto.x + (20.0 * cos).round() as i32;
+						let y = sto.y - (20.0 * sin).round() as i32;
+						let gmo_factory = ctx.gmo_factory;
+						let mut gmo_shot = gmo_factory.spawn_shot(
+							&mut ctx, x, y,
+							BhvDataMove {
+								dx: (5.0 * cos).round() as i32,
+								dy: -(5.0 * sin).round() as i32
+							}
+						);
+						let sto_shot = ctx.sto_factory.spawn_shot(gmo_shot.data.x, gmo_shot.data.y);
+						gmo_shot.sto_index = ctx.stage.add_child(sto_shot);
+						pantry_gmo.alloc(gmo_shot);
+					}
+*/
 		process_game_objects(&mut pantry_gmo, &mut ctx);
+
 		collider.check(
 			Rect { x: 0, y: 0, w: ctx.stage.w, h: ctx.stage.h },
 			&mut pantry_gmo,
@@ -196,12 +250,15 @@ pub fn main()
 			let sevt = solver.solve(&mut pantry_gmo, &mut vec_collide, &mut ctx);
 			let score = 10 * sevt.shot_carriers + 5 * sevt.shot_chutes;
 			if score > 0 {
-				println!("score: {}", score);
+				//println!("score: {}", score);
 			}
 			vec_collide.clear();
 		}
-		for i in 0..ctx.vec_gmo_new.len() {
-			pantry_gmo.alloc(ctx.vec_gmo_new.pop().unwrap());
+
+		while ctx.vec_gmo_new.len() > 0 {
+			let mut new = ctx.vec_gmo_new.pop().unwrap();
+			new.gmo.sto_index = ctx.stage.add_child(new.sto);
+			pantry_gmo.alloc(new.gmo);
 		}
 
 		let mut diff: i32 = next_tick - timer.ticks() as i32;

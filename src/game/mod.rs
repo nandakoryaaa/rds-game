@@ -5,11 +5,11 @@ use crate::pantry::*;
 use crate::renderer::*;
 use crate::collider::*;
 
-
-pub struct StageObject<'a> {
+pub struct StageObject {
 	pub x: i32,
 	pub y: i32,
-	pub drawable: &'a dyn Drawable,
+	pub angle: i32,
+	pub drawable: &'static dyn Drawable
 }
 
 #[derive(Copy, Clone)]
@@ -23,55 +23,82 @@ pub struct GmoData {
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum GmoType {
 	NONE, GUN, SHOT, CARRIER, BOMBER, CHUTE,
-	FALLING, STANDING, BOMB, EXPLOSION
+	FALLING, STANDING, SPLOSH, BOMB, EXPLOSION
 }
 
 pub struct GameObject {
 	pub gmo_type: GmoType,
 	pub data: GmoData,
 	pub collide_mask: CollideMask, 
-	pub sto_index: usize,
 	pub bhv: &'static dyn Behaviour,
+	pub sto_index: usize,
 	pub bhvd_index: usize
 }
 
 impl GameObject {
-	pub fn free(&mut self, ctx: &mut Context) {
+	pub fn update_from(
+		&mut self, ctx: &mut Context,
+		gmo: &GameObject, sto: StageObject
+	) {
+		self.bhv.free(ctx, self.bhvd_index);
+		self.bhv = gmo.bhv;
+		self.bhvd_index = gmo.bhvd_index;
+		self.gmo_type = gmo.gmo_type;
+		self.data = gmo.data;
+		self.collide_mask = gmo.collide_mask;
+		ctx.stage.update_child(self.sto_index, sto);
+	}
+
+	pub fn free(&self, ctx: &mut Context) {
 		ctx.stage.remove_child(self.sto_index);
 		self.bhv.free(ctx, self.bhvd_index);
 	}
 }
 
-pub struct Stage<'a> {
-	pub w: u32,
-	pub h: u32,
-	pub pantry_sto: Pantry<StageObject<'a>>
+pub struct GmoNew {
+	pub sto: StageObject,
+	pub gmo: GameObject
 }
 
-impl<'a> Stage<'a> {
-	pub fn add_child(&mut self, sto: StageObject<'a>) -> usize {
+pub struct Stage {
+	pub w: u32,
+	pub h: u32,
+	pub pantry_sto: Pantry<StageObject>
+}
+
+impl Stage {
+	pub fn add_child(&mut self, sto: StageObject) -> usize {
 		return self.pantry_sto.alloc(sto);
+	}
+
+	pub fn update_child(&mut self, index: usize, sto: StageObject) {
+		self.pantry_sto.update(index, sto);
 	}
 
 	pub fn remove_child(&mut self, index: usize) {
 		self.pantry_sto.free(index);
 	}
 
-	pub fn get(&mut self, index: usize) -> &mut StageObject<'a> {
+	pub fn get(&mut self, index: usize) -> &StageObject {
 		self.pantry_sto.get(index)
 	}
-	
+
+	pub fn get_mut(&mut self, index: usize) -> &mut StageObject {
+		self.pantry_sto.get_mut(index)
+	}
+
 	pub fn draw(&self, renderer: &mut Renderer) {
 		renderer.clear();
-		if self.pantry_sto.used_cnt > 0 {
-			let mut index = self.pantry_sto.used_first;
+		if self.pantry_sto.len() > 0 {
+			let mut index = self.pantry_sto.first_index();
 	   		loop {
-				let sto = &self.pantry_sto.entries[index].payload;
-				sto.drawable.draw(sto.x, sto.y, renderer);
-				if index == self.pantry_sto.used_last {
+				let is_last = self.pantry_sto.is_last_index(index);
+				let sto = self.pantry_sto.get(index);
+				sto.drawable.draw(sto, renderer);
+				if is_last {
 					break;
 				}
-				index = self.pantry_sto.entries[index].next;
+				index = self.pantry_sto.next_index(index);
 			}
 		}
 		renderer.present();

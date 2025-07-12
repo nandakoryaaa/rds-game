@@ -29,6 +29,10 @@ impl<T> Pantry<T> {
 		}
 	}
 
+	pub fn get_mut(&mut self, index: usize) -> &mut T {
+		&mut self.entries[index].payload
+	}
+
 	pub fn first_index(&self) -> usize {
 		return self.used_first;
 	}
@@ -80,19 +84,20 @@ impl<T> Pantry<T> {
 		index
 	}
 
-	pub fn get(&mut self, index: usize) -> &mut T {
-		&mut self.entries[index].payload
+	pub fn update(&mut self, index: usize, p: T) {
+		self.entries[index].payload = p;
 	}
 
-	pub fn get_immutable(&self, index: usize) -> &T {
+	pub fn get(&self, index: usize) -> &T {
 		&self.entries[index].payload
 	}
-
 		
 	pub fn free(&mut self, index: usize) {
 		if index >= self.entries.len() || self.used_cnt == 0 {
-			panic!("free({}): invalid index {} len {} used_cnt {}", std::any::type_name::<T>(), index, self.entries.len(), self.used_cnt);
-			//return;
+			panic!(
+				"free({}): invalid index {} len {} used_cnt {}",
+				std::any::type_name::<T>(), index, self.entries.len(), self.used_cnt
+			);
 		}
 		let prev = self.entries[index].prev;
 		let next = self.entries[index].next;

@@ -1,10 +1,9 @@
-use crate::game::{ GmoData };
+use crate::game::{ GmoType, GameObject, GmoNew };
 use crate::Context;
 
-pub struct BhvDataCarrier {
-	pub dx: i32,
-	pub interval: u32,
-	pub cnt: u32
+#[derive(PartialEq, Eq)]
+pub enum BhvStatus {
+	OK, END
 }
 
 pub struct BhvDataMove {
@@ -12,53 +11,155 @@ pub struct BhvDataMove {
 	pub dy: i32
 }
 
-pub trait Behaviour {
-	fn update(
-		&self, gmo_data: &mut GmoData,
-		ctx: &mut Context, index: usize
-	);
-	fn free(&self, ctx: &mut Context, index: usize);
+pub struct BhvDataGun {
+	pub wave_type: GmoType,
+	pub cnt: u32,
+	pub delay: u32
 }
 
-pub struct BehaviourCarrier {}
+pub struct BhvDataTimedMotion {
+	pub speed: i32,
+	pub delay: u32
+}
 
-impl Behaviour for BehaviourCarrier {
+pub trait Behaviour
+{
 	fn update(
-		&self, gmo_data: &mut GmoData, ctx: &mut Context, index: usize
-	) {
-		let bhv_data = ctx.storage.pantry_bhvd_carrier.get(index);
-		gmo_data.x += bhv_data.dx;
-		bhv_data.cnt += 1;
-		if bhv_data.cnt == bhv_data.interval {
-			bhv_data.cnt = 0;
-			let factory = ctx.factory;
-			let gmo = factory.spawn_chute(
-				ctx,
-				GmoData { x: gmo_data.x, y: gmo_data.y, w: 15, h: 20 },
-				BhvDataMove { dx: 0, dy: 2 }
-			);
+		&self, ctx: &mut Context, gmo: &mut GameObject, gmo_index: usize
+	) -> BhvStatus;
 
-			ctx.vec_gmo_new.push(gmo);
-		}
-	}
-
-	fn free(&self, ctx: &mut Context, index: usize) {
-		ctx.storage.pantry_bhvd_carrier.free(index);
-	}
+	fn free(&self, ctx: &mut Context, index: usize);
 }
 
 pub struct BehaviourMove {}
 
-impl Behaviour for BehaviourMove {
+impl Behaviour for BehaviourMove {	// safe
 	fn update(
-		&self, gmo_data: &mut GmoData, ctx: &mut Context, index: usize
-	) {
-		let bhv_data = ctx.storage.pantry_bhvd_move.get(index);
-		gmo_data.x += bhv_data.dx;
-		gmo_data.y += bhv_data.dy;
+		&self, ctx: &mut Context, gmo: &mut GameObject, gmo_index: usize
+	) -> BhvStatus {
+		let bhv_data = ctx.storage.pantry_bhvd_move.get(gmo.bhvd_index);
+		gmo.data.x += bhv_data.dx;
+		gmo.data.y += bhv_data.dy;
+		BhvStatus::OK
 	}
 
 	fn free(&self, ctx: &mut Context, index: usize) {
 		ctx.storage.pantry_bhvd_move.free(index);
+	}
+}
+
+pub struct BehaviourGravityMove {}
+
+impl Behaviour for BehaviourGravityMove {	// safe
+	fn update(
+		&self, ctx: &mut Context, gmo: &mut GameObject, gmo_index: usize
+	) -> BhvStatus {
+		let bhv_data = ctx.storage.pantry_bhvd_tm.get_mut(gmo.bhvd_index);
+		gmo.data.y += bhv_data.speed;
+		bhv_data.speed += 1;
+		if gmo.data.y < ctx.stage.h as i32 {
+			return BhvStatus::OK;
+		}
+		BhvStatus::END
+	}
+
+	fn free(&self, ctx: &mut Context, index: usize) {
+		ctx.storage.pantry_bhvd_tm.free(index);
+	}
+}
+
+pub struct BehaviourGun {}
+
+impl Behaviour for BehaviourGun {	// safe - does not replace gmo
+	fn update(
+		&self, ctx: &mut Context, gmo: &mut GameObject, gmo_index: usize
+	) -> BhvStatus {
+		let bhv_data = ctx.storage.pantry_bhvd_gun.get_mut(gmo.bhvd_index);
+		if bhv_data.cnt > 0 {
+			if bhv_data.delay > 0 {
+				bhv_data.delay -= 1;
+			} else {
+				//bhv_data.cnt -= 1;
+				bhv_data.delay = ctx.rand.randint(100, 500);
+				let mut dx = 1;
+				let mut x = 0;
+				if ctx.rand.randint(0, 2) == 1 {
+					dx = -1;
+					x = 700;
+				}
+				let delay = ctx.rand.randint(10, 20);
+				let gmo_factory = ctx.gmo_factory;
+				let gmc = gmo_factory.spawn_carrier(
+					ctx, x, 40,	BhvDataTimedMotion { speed: dx, delay: delay }
+				);
+				ctx.vec_gmo_new.push(
+					GmoNew {
+						sto: ctx.sto_factory.spawn_carrier(gmc.data.x, gmc.data.y, dx),
+						gmo: gmc
+					}
+				);
+			}
+		}
+		BhvStatus::OK
+	}
+
+	fn free(&self, ctx: &mut Context, index: usize) {
+		ctx.storage.pantry_bhvd_gun.free(index);
+	}
+}
+
+pub struct BehaviourCarrier {}
+
+impl Behaviour for BehaviourCarrier {	// safe - does not replace gmo
+	fn update(
+		&self, ctx: &mut Context, gmo: &mut GameObject, gmo_index: usize
+	) -> BhvStatus {
+		let bhv_data = ctx.storage.pantry_bhvd_tm.get_mut(gmo.bhvd_index);
+		gmo.data.x += bhv_data.speed;
+		if bhv_data.delay > 0 {
+			bhv_data.delay -= 1;
+		} else {
+			bhv_data.delay = ctx.rand.randint(50, 100);
+			let gmo_factory = ctx.gmo_factory;
+			let gmt = gmo_factory.spawn_trooper(ctx, gmo.data.x, gmo.data.y);
+			ctx.vec_gmo_new.push(
+				GmoNew {
+					sto: ctx.sto_factory.spawn_trooper(gmo.data.x, gmo.data.y),
+					gmo: gmt
+				}
+			);
+		}
+		BhvStatus::OK
+	}
+
+	fn free(&self, ctx: &mut Context, index: usize) {
+		ctx.storage.pantry_bhvd_tm.free(index);
+	}
+}
+
+pub struct BehaviourTrooper {}
+
+impl Behaviour for BehaviourTrooper {	// replaces gmo
+	fn update(
+		&self, ctx: &mut Context, gmo: &mut GameObject, gmo_index: usize
+	) -> BhvStatus {
+		let bhv_data = ctx.storage.pantry_bhvd_tm.get_mut(gmo.bhvd_index);
+		gmo.data.y += bhv_data.speed;
+		if bhv_data.delay > 0 {
+			bhv_data.delay -= 1;
+			if bhv_data.delay == 0 {
+				// need to replace trooper with chute
+				let gmo_factory = ctx.gmo_factory;
+				let gmc = gmo_factory.spawn_chute(ctx, gmo.data.x, gmo.data.y);
+				let sto = ctx.sto_factory.spawn_chute(gmo.data.x, gmo.data.y);
+				// in-place
+				gmo.update_from(ctx, &gmc, sto);
+			}
+		}
+		BhvStatus::OK
+	}
+
+	fn free(&self, ctx: &mut Context, index: usize) {
+		ctx.storage.pantry_bhvd_tm.free(index);
 	}
 }
