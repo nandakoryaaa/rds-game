@@ -25,7 +25,7 @@ pub struct BhvDataTimedMotion {
 pub trait Behaviour
 {
 	fn update(
-		&self, ctx: &mut Context, gmo: &mut GameObject, gmo_index: usize
+		&self, ctx: &mut Context, gmo: &mut GameObject
 	) -> BhvStatus;
 
 	fn free(&self, ctx: &mut Context, index: usize);
@@ -35,7 +35,7 @@ pub struct BehaviourMove {}
 
 impl Behaviour for BehaviourMove {	// safe
 	fn update(
-		&self, ctx: &mut Context, gmo: &mut GameObject, gmo_index: usize
+		&self, ctx: &mut Context, gmo: &mut GameObject
 	) -> BhvStatus {
 		let bhv_data = ctx.storage.pantry_bhvd_move.get(gmo.bhvd_index);
 		gmo.data.x += bhv_data.dx;
@@ -52,7 +52,7 @@ pub struct BehaviourGravityMove {}
 
 impl Behaviour for BehaviourGravityMove {	// safe
 	fn update(
-		&self, ctx: &mut Context, gmo: &mut GameObject, gmo_index: usize
+		&self, ctx: &mut Context, gmo: &mut GameObject
 	) -> BhvStatus {
 		let bhv_data = ctx.storage.pantry_bhvd_tm.get_mut(gmo.bhvd_index);
 		gmo.data.y += bhv_data.speed;
@@ -72,7 +72,7 @@ pub struct BehaviourGun {}
 
 impl Behaviour for BehaviourGun {	// safe - does not replace gmo
 	fn update(
-		&self, ctx: &mut Context, gmo: &mut GameObject, gmo_index: usize
+		&self, ctx: &mut Context, gmo: &mut GameObject
 	) -> BhvStatus {
 		let bhv_data = ctx.storage.pantry_bhvd_gun.get_mut(gmo.bhvd_index);
 		if bhv_data.cnt > 0 {
@@ -112,7 +112,7 @@ pub struct BehaviourCarrier {}
 
 impl Behaviour for BehaviourCarrier {	// safe - does not replace gmo
 	fn update(
-		&self, ctx: &mut Context, gmo: &mut GameObject, gmo_index: usize
+		&self, ctx: &mut Context, gmo: &mut GameObject
 	) -> BhvStatus {
 		let bhv_data = ctx.storage.pantry_bhvd_tm.get_mut(gmo.bhvd_index);
 		gmo.data.x += bhv_data.speed;
@@ -141,7 +141,7 @@ pub struct BehaviourTrooper {}
 
 impl Behaviour for BehaviourTrooper {	// replaces gmo
 	fn update(
-		&self, ctx: &mut Context, gmo: &mut GameObject, gmo_index: usize
+		&self, ctx: &mut Context, gmo: &mut GameObject
 	) -> BhvStatus {
 		let bhv_data = ctx.storage.pantry_bhvd_tm.get_mut(gmo.bhvd_index);
 		gmo.data.y += bhv_data.speed;

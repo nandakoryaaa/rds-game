@@ -2,7 +2,7 @@
 name = "rds"
 version = "0.1.0"
 authors = ["ZDG"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 time = "0.1"

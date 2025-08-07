@@ -11,19 +11,23 @@ pub mod behaviour;
 pub mod game;
 pub mod collider;
 pub mod xrand;
+pub mod zlib;
+pub mod png;
 
 use sdl2::event::Event;
 use std::{thread, time};
 use sdl2::keyboard::Keycode;
+use std::fs::File;
 
-use crate::static_drawable::*;
-use crate::renderer::*;
-use crate::factory::*;
-use crate::pantry::*;
-use crate::behaviour::*;
-use crate::game::*;
-use crate::collider::*;
-use crate::xrand::XRand;
+use static_drawable::*;
+use renderer::*;
+use factory::*;
+use pantry::*;
+use behaviour::*;
+use game::*;
+use collider::*;
+use xrand::XRand;
+use png::Image;
 
 const FPS_DELAY: i32 = 33;
 const WINDOW_WIDTH: u32 = 800;
@@ -66,9 +70,8 @@ fn process_game_objects(
 		// запомнить состояние последнего индекса,
 		// т.к. после pantry_gmo.free() он может измениться
 		let is_last = pantry_gmo.is_last_index(index);
-		let bhv = pantry_gmo.get(index).bhv;
-		let status = bhv.update(ctx, pantry_gmo.get_mut(index), index);
 		let gmo = pantry_gmo.get_mut(index);
+		let status = gmo.bhv.update(ctx, gmo);
 		if status == BhvStatus::END {
 			gmo.free(ctx);
 			pantry_gmo.free(index);
@@ -105,6 +108,8 @@ fn print_game_objects(pantry_gmo: &Pantry<GameObject>)
 
 pub fn main()
 {
+//	let img = png::read_file("rds_logo.png");
+
 	let sdl = sdl2::init().unwrap();
 	let vss: sdl2::VideoSubsystem = sdl.video().unwrap();
 	let wb = sdl2::video::WindowBuilder::new(
@@ -266,7 +271,7 @@ pub fn main()
 			thread::sleep(time::Duration::from_millis(diff as u64));
 			diff = next_tick - timer.ticks() as i32;
 		}
-
 		next_tick += FPS_DELAY;
+
 	}
 }
