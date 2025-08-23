@@ -2,11 +2,12 @@ extern crate sdl2;
 
 use sdl2::rect::Rect;
 use sdl2::pixels::Color;
-use sdl2::render::WindowCanvas;
-use crate::game::StageObject;
+use sdl2::render::{ WindowCanvas, Texture };
+use crate::game::{ PlainRect, StageObject };
 
 pub struct Renderer<'a> {
-	pub canvas: &'a mut WindowCanvas
+	pub canvas: &'a mut WindowCanvas,
+	pub texture_list: Vec<Texture<'a>>
 }
 
 impl<'a> Renderer<'a> {
@@ -19,8 +20,14 @@ impl<'a> Renderer<'a> {
 		self.canvas.present();
 	}
 
-	pub fn draw_bitmap(&mut self, x:i32, y:i32, handle:u32) {
-		println!("drawing Bitmap {}", handle);
+	pub fn draw_bitmap(
+		&mut self, x:i32, y:i32, tex_handle: usize, rect: PlainRect
+	) {
+		self.canvas.copy(
+			&self.texture_list[tex_handle],
+			Some(Rect::new(rect.x, rect.y, rect.w, rect.h)),
+			Some(Rect::new(x, y, rect.w, rect.h))
+		);
 	}
 
 	pub fn draw_rect(&mut self, x:i32, y:i32, w:u32, h:u32, color:Color) {
@@ -98,7 +105,8 @@ pub trait Drawable {
 }
 
 pub struct DrawableBitmap {
-	pub handle: u32
+	pub tex_handle: usize,
+	pub rect: PlainRect
 }
 
 pub struct DrawableRect {
@@ -131,7 +139,7 @@ pub struct DrawableListRect {
 
 impl Drawable for DrawableBitmap {
 	fn draw(&self, sto: &StageObject, renderer: &mut Renderer) {
-		renderer.draw_bitmap(sto.x, sto.y, self.handle);
+		renderer.draw_bitmap(sto.x, sto.y, self.tex_handle, self.rect);
 	}
 }
 
@@ -178,8 +186,6 @@ impl Drawable for DrawableRotRect {
 			self.color
 		);
 		
-		//dp.draw(sto, renderer);
-
 		x1 = x0;
 		y1 = y2;
 
@@ -192,6 +198,5 @@ impl Drawable for DrawableRotRect {
 			cyy - (x2 as f32 * sin + y2 as f32 * cos).round() as i32,
 			self.color
 		);
-		//dp.draw(sto, renderer);
 	}
 }

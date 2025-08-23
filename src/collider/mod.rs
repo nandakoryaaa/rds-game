@@ -1,4 +1,4 @@
-use crate::game::{ GmoType, GameObject, GmoNew };
+use crate::game::{ GmoType, GameObject, GmoNew, PlainRect };
 use crate::pantry::Pantry;
 use crate::Context;
 
@@ -28,18 +28,11 @@ pub struct CollidePair {
 	pub status: CollideStatus
 }
 
-pub struct Rect {
-	pub x: i32,
-	pub y: i32,
-	pub w: u32,
-	pub h: u32
-}
-
 pub struct Collider {}
 
 impl Collider {
 	pub fn check(
-		&self, rect: Rect, pantry_gmo: &mut Pantry<GameObject>,
+		&self, rect: PlainRect, pantry_gmo: &mut Pantry<GameObject>,
 		vec_collide: &mut Vec<CollidePair>
 	) {
 
@@ -179,18 +172,22 @@ impl Solver {
 					}
 					let data_chute = pantry_gmo.get(index_chute).data;
 					let data_shot = pantry_gmo.get(index_shot).data;
-					if data_shot.y - data_chute.y < 8 {
+					if data_shot.y - data_chute.y < 15 {
 						// попадание в купол
 						sevt.shot_chutes += 1;
 						let gmo_factory = ctx.gmo_factory;
-						let spawned = gmo_factory.spawn_falling(ctx, data_chute.x, data_chute.y);
-						let sto = ctx.sto_factory.spawn_trooper(data_chute.x, data_chute.y);
+						let mut spawned = gmo_factory.spawn_falling(ctx, data_chute.x, data_chute.y);
+						spawned.data.x += ((data_chute.w - spawned.data.w) >> 1) as i32;
+						spawned.data.y += (data_chute.h - spawned.data.h) as i32;
+
+						let sto = ctx.sto_factory.spawn_falling(spawned.data.x, spawned.data.y);
 						let gmo_chute = pantry_gmo.get_mut(index_chute);
 						// in-place
 						gmo_chute.update_from(ctx, &spawned, sto);
 						should_delete = false;
-					} else if data_shot.x - data_chute.x > 4
-						&& data_chute.x + data_chute.w as i32 - data_shot.x > 4 {
+					} else if data_shot.y > 25
+						&& data_shot.x - data_chute.x > 12
+						&& data_chute.x + data_chute.w as i32 - data_shot.x > 12 {
 						// попадание в парашютиста
 						sevt.shot_chutes += 1;
 					} else {

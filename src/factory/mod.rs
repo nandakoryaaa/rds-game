@@ -34,7 +34,7 @@ impl GmoFactory {
 		GameObject {
 			gmo_type: GmoType::CARRIER,
 			sto_index: 0,
-			data: GmoData { x: x, y: y, w: 63, h: 23 },
+			data: GmoData { x: x, y: y, w: 101, h: 50 },
 			collide_mask: CollideMask {
 				src: CollideGroup::AERIAL, dst: CollideGroup::NONE
 			},
@@ -67,7 +67,7 @@ impl GmoFactory {
 		GameObject {
 			gmo_type: GmoType::FALLING,
 			sto_index: 0,
-			data: GmoData { x: x, y: y, w: 20, h: 21 },
+			data: GmoData { x: x, y: y, w: 17, h: 26 },
 			collide_mask: CollideMask {
 				src: CollideGroup::AERIAL, dst: CollideGroup::NONE
 			},
@@ -81,7 +81,7 @@ impl GmoFactory {
 		GameObject {
 			gmo_type: GmoType::FALLING,
 			sto_index: 0,
-			data: GmoData { x: x, y: y, w: 20, h: 21 },
+			data: GmoData { x: x, y: y, w: 16, h: 25 },
 			collide_mask: CollideMask {
 				src: CollideGroup::AERIAL, dst: CollideGroup::NONE
 			},
@@ -97,7 +97,7 @@ impl GmoFactory {
 		GameObject {
 			gmo_type: GmoType::CHUTE,
 			sto_index: 0,
-			data: GmoData { x: x, y: y, w: 20, h: 21 },
+			data: GmoData { x: x, y: y, w: 41, h: 51 },
 			collide_mask: CollideMask {
 				src: CollideGroup::AERIAL, dst: CollideGroup::NONE
 			},
@@ -152,6 +152,11 @@ impl StoFactory {
 	pub fn spawn_trooper(&self, x: i32, y: i32) -> StageObject
 	{
 		StageObject { x: x, y: y,  angle: 0, drawable: &DR_TROOPER }
+	}
+
+	pub fn spawn_falling(&self, x: i32, y: i32) -> StageObject
+	{
+		StageObject { x: x, y: y,  angle: 0, drawable: &DR_FALLING }
 	}
 
 	pub fn spawn_chute(&self, x: i32, y: i32) -> StageObject

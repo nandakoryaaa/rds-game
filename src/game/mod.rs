@@ -5,6 +5,14 @@ use crate::pantry::*;
 use crate::renderer::*;
 use crate::collider::*;
 
+#[derive(Copy, Clone)]
+pub struct PlainRect {
+	pub x: i32,
+	pub y: i32,
+	pub w: u32,
+	pub h: u32
+}
+
 pub struct StageObject {
 	pub x: i32,
 	pub y: i32,
@@ -88,7 +96,6 @@ impl Stage {
 	}
 
 	pub fn draw(&self, renderer: &mut Renderer) {
-		renderer.clear();
 		if self.pantry_sto.len() > 0 {
 			let mut index = self.pantry_sto.first_index();
 	   		loop {
@@ -101,6 +108,5 @@ impl Stage {
 				index = self.pantry_sto.next_index(index);
 			}
 		}
-		renderer.present();
 	}
 }

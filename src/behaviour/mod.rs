@@ -115,20 +115,26 @@ impl Behaviour for BehaviourCarrier {	// safe - does not replace gmo
 		&self, ctx: &mut Context, gmo: &mut GameObject
 	) -> BhvStatus {
 		let bhv_data = ctx.storage.pantry_bhvd_tm.get_mut(gmo.bhvd_index);
-		gmo.data.x += bhv_data.speed;
+		let speed = bhv_data.speed;
 		if bhv_data.delay > 0 {
 			bhv_data.delay -= 1;
 		} else {
 			bhv_data.delay = ctx.rand.randint(50, 100);
 			let gmo_factory = ctx.gmo_factory;
-			let gmt = gmo_factory.spawn_trooper(ctx, gmo.data.x, gmo.data.y);
+			let mut gmt = gmo_factory.spawn_trooper(ctx, gmo.data.x, gmo.data.y + 24);
+			if speed > 0 {
+				gmt.data.x += 54;
+			} else {
+				gmt.data.x += 31;
+			}
 			ctx.vec_gmo_new.push(
 				GmoNew {
-					sto: ctx.sto_factory.spawn_trooper(gmo.data.x, gmo.data.y),
+					sto: ctx.sto_factory.spawn_trooper(gmt.data.x, gmt.data.y),
 					gmo: gmt
 				}
 			);
 		}
+		gmo.data.x += speed;
 		BhvStatus::OK
 	}
 
@@ -150,8 +156,10 @@ impl Behaviour for BehaviourTrooper {	// replaces gmo
 			if bhv_data.delay == 0 {
 				// need to replace trooper with chute
 				let gmo_factory = ctx.gmo_factory;
-				let gmc = gmo_factory.spawn_chute(ctx, gmo.data.x, gmo.data.y);
-				let sto = ctx.sto_factory.spawn_chute(gmo.data.x, gmo.data.y);
+				let mut gmc = gmo_factory.spawn_chute(ctx, gmo.data.x, gmo.data.y);
+				gmc.data.y -= gmc.data.h - gmo.data.h;
+				gmc.data.x -= ((gmc.data.w - gmo.data.w) >> 1) as i32;
+				let sto = ctx.sto_factory.spawn_chute(gmc.data.x, gmc.data.y);
 				// in-place
 				gmo.update_from(ctx, &gmc, sto);
 			}

@@ -15,9 +15,11 @@ pub mod zlib;
 pub mod png;
 
 use sdl2::event::Event;
-use std::{thread, time};
+use sdl2::pixels::PixelFormatEnum;
+use sdl2::render::{ Texture, BlendMode, TextureAccess };
 use sdl2::keyboard::Keycode;
-use std::fs::File;
+
+use std::{ thread, time };
 
 use static_drawable::*;
 use renderer::*;
@@ -27,8 +29,8 @@ use behaviour::*;
 use game::*;
 use collider::*;
 use xrand::XRand;
-use png::Image;
 
+const MAX_OBJ_CNT: usize = 128;
 const FPS_DELAY: i32 = 33;
 const WINDOW_WIDTH: u32 = 800;
 const WINDOW_HEIGHT: u32 = 600;
@@ -108,10 +110,9 @@ fn print_game_objects(pantry_gmo: &Pantry<GameObject>)
 
 pub fn main()
 {
-//	let img = png::read_file("rds_logo.png");
-
 	let sdl = sdl2::init().unwrap();
 	let vss: sdl2::VideoSubsystem = sdl.video().unwrap();
+
 	let wb = sdl2::video::WindowBuilder::new(
 		& vss,
 		"RDS",
@@ -119,33 +120,55 @@ pub fn main()
 		WINDOW_HEIGHT
 	);
 
+	let img = png::read_file("rds_atlas.png");
+
 	let window: sdl2::video::Window = wb.build().unwrap();
 	let cb = sdl2::render::CanvasBuilder::new(window);
 	let mut canvas = cb.build().unwrap();
-	let mut renderer = Renderer { canvas: &mut canvas };
+
+	canvas.set_blend_mode(BlendMode::Blend);
+
+	let texture_creator = canvas.texture_creator();
+
+	let mut texture = texture_creator.create_texture(
+		PixelFormatEnum::ABGR8888,
+		TextureAccess::Static,
+		img.width,
+		img.height
+	).unwrap();
+
+	texture.update(None, &img.data[0..], img.stride);
+	texture.set_blend_mode(BlendMode::Blend);
+
+	let mut renderer = Renderer {
+		canvas: &mut canvas,
+		texture_list: Vec::<Texture>::with_capacity(2)
+	};
+
+	renderer.texture_list.push(texture);
 
 	let mut ctx = Context {
 		stage: Stage {
 			w: WINDOW_WIDTH,
 			h: WINDOW_HEIGHT,
-			pantry_sto: Pantry::create(128),
+			pantry_sto: Pantry::create(MAX_OBJ_CNT),
 		},
 		gmo_factory: GmoFactory {},
 		sto_factory: StoFactory {},
-		storage: Storage::create(128),
-		vec_gmo_new: Vec::with_capacity(128),
+		storage: Storage::create(MAX_OBJ_CNT),
+		vec_gmo_new: Vec::with_capacity(MAX_OBJ_CNT),
 		rand: XRand::new()
 	};
 
-	let mut pantry_gmo: Pantry<GameObject> = Pantry::create(128);
-	let mut vec_collide: Vec<CollidePair> = Vec::with_capacity(128);
+	let mut pantry_gmo: Pantry<GameObject> = Pantry::create(MAX_OBJ_CNT);
+	let mut vec_collide: Vec<CollidePair> = Vec::with_capacity(MAX_OBJ_CNT);
 
 	let gmo_factory = ctx.gmo_factory;
 
 	{
 		let mut gmo_gun = gmo_factory.spawn_gun(
 			&mut ctx, 400-16, 600-37,
-			BhvDataGun { wave_type: GmoType::CARRIER, cnt:10, delay: 30 }
+			BhvDataGun { wave_type: GmoType::CARRIER, cnt: 10, delay: 30 }
 		);
 		gmo_gun.sto_index = ctx.stage.add_child(
 			ctx.sto_factory.spawn_gun(gmo_gun.data.x, gmo_gun.data.y)
@@ -164,7 +187,11 @@ pub fn main()
 	let solver = Solver {};
 
 	while running {
+
+		renderer.clear();
 		ctx.stage.draw(&mut renderer);
+		renderer.present();
+
 		for evt in evt_pump.poll_iter() {
 			match evt {
 				Event::Quit { .. } => {
@@ -246,7 +273,7 @@ pub fn main()
 		process_game_objects(&mut pantry_gmo, &mut ctx);
 
 		collider.check(
-			Rect { x: 0, y: 0, w: ctx.stage.w, h: ctx.stage.h },
+			PlainRect { x: 0, y: 0, w: ctx.stage.w, h: ctx.stage.h },
 			&mut pantry_gmo,
 			&mut vec_collide
 		);

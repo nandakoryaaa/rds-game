@@ -1,3 +1,8 @@
+/**
+ * derived from https://prng.di.unimi.it/xoshiro128plusplus.c
+ * original C code by David Blackman and Sebastiano Vigna (vigna@acm.org)
+ */
+
 extern crate time;
 
 pub struct XRand {
