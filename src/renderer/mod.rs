@@ -23,7 +23,7 @@ impl<'a> Renderer<'a> {
 	pub fn draw_bitmap(
 		&mut self, x:i32, y:i32, tex_handle: usize, rect: PlainRect
 	) {
-		self.canvas.copy(
+		let _ = self.canvas.copy(
 			&self.texture_list[tex_handle],
 			Some(Rect::new(rect.x, rect.y, rect.w, rect.h)),
 			Some(Rect::new(x, y, rect.w, rect.h))

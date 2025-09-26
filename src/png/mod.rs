@@ -145,7 +145,7 @@ fn get_u32(buf: &[u8]) -> u32 {
 
 fn read_chunk(f: &mut File, buf: &mut [u8]) -> PNGChunk {
 	let slice = &mut buf[..8]; 
-	f.read_exact(slice);
+	let _ = f.read_exact(slice);
 
 	PNGChunk {
 		length: get_u32(slice),
@@ -206,10 +206,10 @@ pub fn read_file(filename: &str) -> Image {
 		}
 		if chunk.ctype == CHUNK_IDAT {
 			slice = &mut buf[pos..pos + chunk.length as usize + 4];
-			file.read_exact(slice);
+			let _ = file.read_exact(slice);
 			pos += chunk.length as usize;
 		} else {
-			file.seek(SeekFrom::Current(chunk.length as i64 + 4));
+			let _ = file.seek(SeekFrom::Current(chunk.length as i64 + 4));
 		}
 	}
  

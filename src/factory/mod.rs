@@ -12,7 +12,8 @@ pub struct GmoFactory {
 pub struct StoFactory {
 }
 
-impl GmoFactory {
+impl GmoFactory
+{
 	pub fn spawn_shot(
 		&self, ctx: &mut Context, x: i32, y: i32, bhv_data: BhvDataMove
 	) -> GameObject {
@@ -125,7 +126,13 @@ impl GmoFactory {
 	}
 }
 
-impl StoFactory {
+impl StoFactory
+{
+	pub fn spawn_logo(&self, x: i32, y: i32) -> StageObject
+	{
+		StageObject { x: x, y: y, angle: 0, drawable: &DR_LOGO }
+	}
+
 	pub fn spawn_shot(&self, x: i32, y: i32) -> StageObject
 	{
 		StageObject { x: x, y: y, angle: 0, drawable: &DR_SHOT }

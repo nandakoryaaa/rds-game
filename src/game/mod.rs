@@ -43,7 +43,8 @@ pub struct GameObject {
 	pub bhvd_index: usize
 }
 
-impl GameObject {
+impl GameObject
+{
 	pub fn update_from(
 		&mut self, ctx: &mut Context,
 		gmo: &GameObject, sto: StageObject
@@ -74,7 +75,13 @@ pub struct Stage {
 	pub pantry_sto: Pantry<StageObject>
 }
 
-impl Stage {
+impl Stage
+{
+	pub fn clear(&mut self)
+	{
+		self.pantry_sto.clear();
+	}
+
 	pub fn add_child(&mut self, sto: StageObject) -> usize {
 		return self.pantry_sto.alloc(sto);
 	}
@@ -87,7 +94,7 @@ impl Stage {
 		self.pantry_sto.free(index);
 	}
 
-	pub fn get(&mut self, index: usize) -> &StageObject {
+	pub fn get(&self, index: usize) -> &StageObject {
 		self.pantry_sto.get(index)
 	}
 

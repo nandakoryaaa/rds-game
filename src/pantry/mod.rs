@@ -15,8 +15,10 @@ pub struct Pantry<T> {
 	pub free_last: usize
 }
 
-impl<T> Pantry<T> {
-	pub fn create(capacity: usize) -> Self {
+impl<T> Pantry<T>
+{
+	pub fn create(capacity: usize) -> Self
+	{
 		Pantry {
 			entries: Vec::with_capacity(capacity),
 			capacity: capacity,
@@ -29,31 +31,49 @@ impl<T> Pantry<T> {
 		}
 	}
 
-	pub fn get_mut(&mut self, index: usize) -> &mut T {
+	pub fn clear(&mut self)
+	{
+		self.entries.clear();
+		self.used_cnt = 0;
+		self.free_cnt = 0;
+		self.used_first = 0;
+		self.used_last = 0;
+		self.free_first = 0;
+		self.free_last = 0;
+	}
+
+	pub fn get_mut(&mut self, index: usize) -> &mut T
+	{
 		&mut self.entries[index].payload
 	}
 
-	pub fn first_index(&self) -> usize {
+	pub fn first_index(&self) -> usize
+	{
 		return self.used_first;
 	}
 
-	pub fn last_index(&self) -> usize {
+	pub fn last_index(&self) -> usize
+	{
 		return self.used_last;
 	}
 
-	pub fn next_index(&self, index: usize) -> usize {
+	pub fn next_index(&self, index: usize) -> usize
+	{
 		return self.entries[index].next;
 	}
 
-	pub fn is_last_index(&self, index: usize) -> bool {
+	pub fn is_last_index(&self, index: usize) -> bool
+	{
 		return index == self.used_last;
 	}
 
-	pub fn len(&self) -> usize {
+	pub fn len(&self) -> usize
+	{
 		return self.used_cnt;
 	}
 
-	pub fn alloc(&mut self, p: T) -> usize {
+	pub fn alloc(&mut self, p: T) -> usize
+	{
 		let mut index: usize = self.entries.len();
 
 		let entry = ListEntry {
@@ -84,15 +104,18 @@ impl<T> Pantry<T> {
 		index
 	}
 
-	pub fn update(&mut self, index: usize, p: T) {
+	pub fn update(&mut self, index: usize, p: T)
+	{
 		self.entries[index].payload = p;
 	}
 
-	pub fn get(&self, index: usize) -> &T {
+	pub fn get(&self, index: usize) -> &T
+	{
 		&self.entries[index].payload
 	}
 		
-	pub fn free(&mut self, index: usize) {
+	pub fn free(&mut self, index: usize)
+	{
 		if index >= self.entries.len() || self.used_cnt == 0 {
 			panic!(
 				"free({}): invalid index {} len {} used_cnt {}",

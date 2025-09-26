@@ -40,6 +40,11 @@ pub static DR_BOMBER: DrawableRect = DrawableRect {
 	w: 30, h: 20, color: Color::RGB(0, 0, 255)
 };
 
+pub static DR_LOGO: DrawableBitmap = DrawableBitmap {
+	tex_handle: 0,
+	rect: PlainRect { x: 0, y: 0, w: 630, h: 187 }
+};
+
 pub static DR_TROOPER: DrawableBitmap = DrawableBitmap {
 	tex_handle: 0,
 	rect: PlainRect { x: 246, y: 188, w: 17, h: 26 }
@@ -54,7 +59,6 @@ pub static DR_FALLING: DrawableBitmap = DrawableBitmap {
 	tex_handle: 0,
 	rect: PlainRect { x: 264, y: 188, w: 16, h: 25 }
 };
-
 
 pub static DR_BOMB: DrawableRect = DrawableRect {
 	w: 10, h: 10, color: Color::RGB(255, 0, 0)
